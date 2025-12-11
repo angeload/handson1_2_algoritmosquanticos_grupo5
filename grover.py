@@ -6,6 +6,7 @@ from qiskit import QuantumCircuit, transpile
 from qiskit_aer import AerSimulator
 from qiskit.visualization import plot_histogram
 import matplotlib.pyplot as plt
+import time
 
 # Definição de funções
 def grover_oracle(circuit: QuantumCircuit, marked_state_str: str):
@@ -72,13 +73,21 @@ def grover_diffuser(circuit: QuantumCircuit):
 # PROGRAMA PRINICIPAL
 # -----------------
 # Definição dos Parâmetros do Algoritmo
-n_qubits = 3  # Número de qubits
-marked_state = '110' # O estado que queremos encontrar
+# n_qubits = 2  # Número de qubits
+# marked_state = '11' # O estado que queremos encontrar
+# n_qubits = 3  # Número de qubits
+# marked_state = '110' # O estado que queremos encontrar
+# n_qubits = 16  # Número de qubits
+# marked_state = '1100110011001100' # O estado que queremos encontrar
+# n_qubits = 8  # Número de qubits
+# marked_state = '11001100' # O estado que queremos encontrar
+n_qubits = 10  # Número de qubits
+marked_state = '1100110011' # O estado que queremos encontrar
 
-# O número de estados na base de busca
+# Numero de estados na base de busca
 N = 2**n_qubits
 
-# Assumimos que há apenas 1 estado marcado (M=1) para este exemplo
+# Número de estados marcados
 M = 1
 
 # Calculando o número ótimo de iterações (arredondado para o inteiro mais próximo)
@@ -104,10 +113,10 @@ qc.barrier() # Barreira para visualização clara no circuito
 
 # Loop das Iterações do Grover
 for i in range(num_iterations): 
-    print(f"Aplicando iteração Grover {i+1}/{num_iterations}...")
+    print(f"Aplicando iteração Grover...{i+1}/{num_iterations}", end='\r')
     grover_oracle(qc, marked_state)
     grover_diffuser(qc)
-
+print("\n")
 
 # Medição
 # Mede todos os qubits quânticos e armazena os resultados nos bits clássicos.
@@ -115,62 +124,37 @@ qc.measure(range(n_qubits), range(n_qubits))
 
 
 # Visualização do Circuito Final
-print("Circuito Final do Algoritmo de Grover:")
+print("Salvando circuito final do Algoritmo de Grover...")
 # Desenha o circuito. 'mpl' para visualização em matplotlib.
-# 'fold=-1' para evitar que o circuito seja dobrado em múltiplas linhas
-qc.draw('mpl', fold=-1, filename='grover_circuit_'+str(n_qubits)+'-bit.png')
-plt.show()
+# Se usar 'fold=-1' evita que o circuito seja dobrado em múltiplas linhas
+qc.draw('mpl', fold=100, scale=0.5, plot_barriers=False, filename='./figures/grover_circuit_'+str(n_qubits)+'-bit.png')
+# plt.show()
+print("Circuito salvo em './figures/grover_circuit_"+str(n_qubits)+"-bit.png'\n")
 
+# ----------
+# Simulação e Resultados
+# ----------
+print("Iniciando simulação do circuito...")
+start_time = time.perf_counter() # inicio da simulação
 
-# Execução no Simulador
 simulator = AerSimulator()
 compiled_circuit = transpile(qc, simulator)
 
-# Executa o circuito no simulador com um grande número de shots
-shots = 100000
+# Executa o circuito no simulador
+shots = 100
 job = simulator.run(compiled_circuit, shots=shots)
 result = job.result()
 counts = result.get_counts(qc)
 
+end_time = time.perf_counter() # fim da simulação
+print("Simulação concluída.")
+
+elapsed_time = end_time - start_time # Tempo decorrido
+print(f"Tempo de simulação: {elapsed_time:.4f} segundos")
+
 print("\nResultados das Medições:")
 print(counts)
 
-# Plotagem das Probabilidades
-plot_histogram(counts, title=f"Probabilidades após {num_iterations} iterações do Grover")
-plt.show()
-
-# Verificação do Statevector antes da medição
-# Este passo não faz parte do algoritmo real, foi só para análise.
-from qiskit.quantum_info import Statevector
-
-# Recria o circuito sem medições para verificar o statevector
-qc_statevector_manual = QuantumCircuit(n_qubits)
-qc_statevector_manual.h(range(n_qubits))
-
-for _ in range(num_iterations):
-    grover_oracle(qc_statevector_manual, marked_state)
-    grover_diffuser(qc_statevector_manual)
-
-print("\nCircuito para Statevector sem medições:")
-qc_statevector_manual.draw('mpl', fold=-1, filename='grover_statevector_circuit_'+str(n_qubits)+'-bit.png')
-plt.show()
-
-
-# Inicializa um statevector no estado |000⟩
-initial_state = Statevector.from_int(0, dims=2**n_qubits)
-
-# Aplica o circuito ao statevector inicial
-final_statevector = initial_state.evolve(qc_statevector_manual)
-
-print("\nStatevector Final:")
-print(final_statevector.data) # .data para acessar o array numpy embutido
-
-# Calcula as probabilidades a partir do statevector
-probabilities = np.abs(final_statevector.data)**2
-
-# Cria um dicionário para plotar com nomes de estados
-state_names = [format(i, '03b') for i in range(N)] # '03b' para 3 bits binários
-prob_dict = {state_names[i]: prob for i, prob in enumerate(probabilities)}
-
-plot_histogram(prob_dict, title="Probabilidades do Statevector (qiskit.quantum_info)")
-plt.show()
+# Salvando o histograma em arquivo
+print("Salvando histograma dos resultados...")
+plot_histogram(counts, title=f"Probabilidades após {num_iterations} iterações do Grover").savefig('./figures/grover_histogram_'+str(n_qubits)+'-bit.png')
