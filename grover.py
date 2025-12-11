@@ -141,7 +141,7 @@ simulator = AerSimulator()
 compiled_circuit = transpile(qc, simulator)
 
 # Executa o circuito no simulador
-shots = 100
+shots = 10
 job = simulator.run(compiled_circuit, shots=shots)
 result = job.result()
 counts = result.get_counts(qc)
@@ -158,3 +158,5 @@ print(counts)
 # Salvando o histograma em arquivo
 print("Salvando histograma dos resultados...")
 plot_histogram(counts, title=f"Probabilidades após {num_iterations} iterações do Grover").savefig('./figures/grover_histogram_'+str(n_qubits)+'-bit.png')
+print("Histograma salvo em './figures/grover_histogram_"+str(n_qubits)+"-bit.png'\n"
+      )
