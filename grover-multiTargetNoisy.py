@@ -5,7 +5,7 @@ import numpy as np
 from qiskit import QuantumCircuit, transpile
 from qiskit_aer import AerSimulator
 # Importações para ruído
-from qiskit_aer.noise import NoiseModel, depolarizing_error
+from qiskit_aer.noise import NoiseModel, depolarizing_error, ReadoutError
 from qiskit.visualization import plot_histogram
 import matplotlib.pyplot as plt
 import time
@@ -90,14 +90,14 @@ qc.measure(range(n_qubits), range(n_qubits))
 
 
 # ----------
-# Configuração do Modelo de Ruído (NOVIDADE AQUI!)
+# Configuração do Modelo de Ruído
 # ----------
 print("Configurando o modelo de ruído...")
 
-# 1. Crie um modelo de ruído vazio
+# 1. Cria um modelo de ruído vazio
 noise_model = NoiseModel()
 
-# 2. Defina as probabilidades de erro
+# 2. Define as probabilidades de erro
 # Para portas de 1 qubit (H, X, etc.)
 p1q = 0.001  # Probabilidade de erro de depolarização em portas de 1 qubit (0.1%)
 # Para portas de 2 qubits (CX, etc.)
@@ -105,23 +105,24 @@ p2q = 0.01   # Probabilidade de erro de depolarização em portas de 2 qubits (1
 # Para erros de leitura (probabilidade de ler 0 como 1, ou 1 como 0)
 p_readout = 0.01 # 1% de erro de leitura
 
-# 3. Crie os objetos de erro
+# 3. Cria os objetos de erro
 # Erro depolarizador para portas de 1 qubit
 error_1q = depolarizing_error(p1q, 1)
 # Erro depolarizador para portas de 2 qubits
 error_2q = depolarizing_error(p2q, 2)
 # Erro de leitura (matriz de probabilidades de [p(0|0) p(1|0)], [p(0|1) p(1|1)])
-# Aqui: [1-p_readout, p_readout] para medir 0; [p_readout, 1-p_readout] para medir 1
-error_readout = [[1 - p_readout, p_readout], [p_readout, 1 - p_readout]]
+readout_matrix = [[1 - p_readout, p_readout], [p_readout, 1 - p_readout]]
+# Crie um objeto ReadoutError a partir da matriz
+readout_error_object = ReadoutError(readout_matrix)
 
 
-# 4. Adicione os erros ao modelo de ruído
-# Adicione erro depolarizador para todas as portas de 1 qubit padrão do Qiskit (incluindo H, X, etc.)
+# 4. Adiciona os erros ao modelo de ruído
+# Adiciona erro depolarizador para todas as portas de 1 qubit padrão do Qiskit (incluindo H, X, etc.)
 noise_model.add_all_qubit_quantum_error(error_1q, ['h', 'x', 'sx', 'rz', 'id']) # 'id' é a porta de identidade (qubit ocioso)
 # Adicione erro depolarizador para todas as portas de 2 qubits padrão (principalmente 'cx')
 noise_model.add_all_qubit_quantum_error(error_2q, ['cx', 'cz', 'swap'])
-# Adicione erro de leitura para todas as medições
-noise_model.add_readout_error(error_readout, range(n_qubits))
+# Adiciona erro de leitura para todas as medições
+noise_model.add_all_qubit_readout_error(readout_error_object)
 
 print(f"Modelo de ruído configurado com p1q={p1q}, p2q={p2q}, p_readout={p_readout}.\n")
 
@@ -140,7 +141,7 @@ compiled_circuit = transpile(qc, simulator)
 
 # Executa o circuito no simulador, passando o noise_model
 shots = 1024
-job = simulator.run(compiled_circuit, shots=shots, noise_model=noise_model) # <<-- AQUI!
+job = simulator.run(compiled_circuit, shots=shots, noise_model=noise_model) 
 result = job.result()
 counts = result.get_counts(qc)
 
