@@ -1,4 +1,4 @@
-# Algoritmo de Grove para 2-bit
+# Algoritmo de Grove para n-qubit
 
 # Importando as bibliotecas necessárias
 import numpy as np
@@ -77,12 +77,12 @@ def grover_diffuser(circuit: QuantumCircuit):
 # marked_state = '11' # O estado que queremos encontrar
 # n_qubits = 3  # Número de qubits
 # marked_state = '110' # O estado que queremos encontrar
-# n_qubits = 16  # Número de qubits
-# marked_state = '1100110011001100' # O estado que queremos encontrar
+n_qubits = 16  # Número de qubits
+marked_state = '1100110011001100' # O estado que queremos encontrar
 # n_qubits = 8  # Número de qubits
 # marked_state = '11001100' # O estado que queremos encontrar
-n_qubits = 10  # Número de qubits
-marked_state = '1100110011' # O estado que queremos encontrar
+# n_qubits = 10  # Número de qubits
+# marked_state = '1100110011' # O estado que queremos encontrar
 
 # Numero de estados na base de busca
 N = 2**n_qubits
@@ -90,9 +90,18 @@ N = 2**n_qubits
 # Número de estados marcados
 M = 1
 
-# Calculando o número ótimo de iterações (arredondado para o inteiro mais próximo)
-# aproximadamente (pi/4) * sqrt(N/M)
-num_iterations = int(np.round(np.pi / 4 * np.sqrt(N / M)))
+# Calculando o número ótimo de iterações
+# A fórmula aproximada (pi/4 * sqrt(N/M)) pode falhar para N pequeno
+# e gerar o fenômeno de over-rotation
+# Fórmula mais robusta= round((pi/2 - theta) / (2*theta))
+theta = np.arcsin(np.sqrt(M/N))
+num_iterations = int(np.round((np.pi/2 - theta) / (2 * theta)))
+# Adicionado para garantir que sempre haja pelo menos 1 iteração se o estado inicial não for o marcado
+if num_iterations == 0 and theta != 0:
+    num_iterations = 1
+
+
+# Exibindo os Parâmetros do Algoritmo
 print(f"Número de qubits: {n_qubits}")
 print(f"Número total de estados (N): {N}")
 print(f"Estado marcado: |{marked_state}⟩")
@@ -123,13 +132,13 @@ print("\n")
 qc.measure(range(n_qubits), range(n_qubits))
 
 
-# Visualização do Circuito Final
-print("Salvando circuito final do Algoritmo de Grover...")
-# Desenha o circuito. 'mpl' para visualização em matplotlib.
-# Se usar 'fold=-1' evita que o circuito seja dobrado em múltiplas linhas
-qc.draw('mpl', fold=100, scale=0.5, plot_barriers=False, filename='./figures/grover_circuit_'+str(n_qubits)+'-bit.png')
-# plt.show()
-print("Circuito salvo em './figures/grover_circuit_"+str(n_qubits)+"-bit.png'\n")
+# # Visualização do Circuito Final
+# print("Salvando circuito final do Algoritmo de Grover...")
+# # Desenha o circuito. 'mpl' para visualização em matplotlib.
+# # Se usar 'fold=-1' evita que o circuito seja dobrado em múltiplas linhas
+# qc.draw('mpl', fold=100, scale=0.5, plot_barriers=False, filename='./figures/grover_circuit_'+str(n_qubits)+'-bit.png')
+# # plt.show()
+# print("Circuito salvo em './figures/grover_circuit_"+str(n_qubits)+"-bit.png'\n")
 
 # ----------
 # Simulação e Resultados
@@ -141,7 +150,7 @@ simulator = AerSimulator()
 compiled_circuit = transpile(qc, simulator)
 
 # Executa o circuito no simulador
-shots = 10
+shots = 1024
 job = simulator.run(compiled_circuit, shots=shots)
 result = job.result()
 counts = result.get_counts(qc)
@@ -152,11 +161,23 @@ print("Simulação concluída.")
 elapsed_time = end_time - start_time # Tempo decorrido
 print(f"Tempo de simulação: {elapsed_time:.4f} segundos")
 
-print("\nResultados das Medições:")
-print(counts)
 
-# Salvando o histograma em arquivo
-print("Salvando histograma dos resultados...")
-plot_histogram(counts, title=f"Probabilidades após {num_iterations} iterações do Grover").savefig('./figures/grover_histogram_'+str(n_qubits)+'-bit.png')
-print("Histograma salvo em './figures/grover_histogram_"+str(n_qubits)+"-bit.png'\n"
-      )
+# Calcula o total de contagens
+# deve ser igual a shots se não houver problemas
+total_counts = sum(counts.values())
+
+# Dicionário para armazenar as probabilidades percentuais
+probabilities = {state: count / total_counts for state, count in counts.items()}
+
+print("\nResultados das Medições (Percentuais):")
+# Ordena para uma exibição mais limpa e formata como percentual
+for state in sorted(probabilities, key=lambda s: probabilities[s], reverse=True):
+    print(f"  Estado |{state}⟩: {probabilities[state]*100:.2f}%")
+
+
+print("\nSalvando histograma dos resultados...")
+# plot_histogram() com um dicionário de probabilidades (valores de 0 a 1)
+# automaticamente ajusta o eixo Y para 'Probability.
+# Multiplicar por 100 pode ser uma opção, mas o padrão 'Probability' é mais comum.
+plot_histogram(probabilities, title=f"Probabilidades após {num_iterations} iterações do Grover e {shots} shots").savefig('./figures/grover_histogram_'+str(n_qubits)+'-bit.png')
+print("Histograma salvo em './figures/grover_histogram_"+str(n_qubits)+"-bit.png'\n")
