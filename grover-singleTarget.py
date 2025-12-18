@@ -81,8 +81,12 @@ def grover_diffuser(circuit: QuantumCircuit):
 # marked_state = '1100110011001100' # O estado que queremos encontrar
 # n_qubits = 8  # Número de qubits
 # marked_state = '11001100' # O estado que queremos encontrar
-n_qubits = 20  # Número de qubits
-marked_state = '01101010110011011001' # O estado que queremos encontrar
+# n_qubits = 20  # Número de qubits
+# marked_state = '01101010110011011001' # O estado que queremos encontrar
+# n_qubits = 24  # Número de qubits
+# marked_state = '011010101100110110010000' # O estado que queremos encontrar
+n_qubits = 28  # Número de qubits
+marked_state = '0110101011001101100100000000' # O estado que queremos encontrar
 
 # Numero de estados na base de busca
 N = 2**n_qubits
